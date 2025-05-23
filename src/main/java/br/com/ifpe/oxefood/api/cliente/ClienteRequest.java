@@ -29,14 +29,15 @@ public class ClienteRequest {
 
    public Cliente build() {
 
-       return Cliente.builder()
+        Cliente c = Cliente.builder()
            .nome(nome)
            .dataNascimento(dataNascimento)
            .cpf(cpf)
            .foneCelular(foneCelular)
            .foneFixo(foneFixo)
            .build();
+
+        return c;
    }
 
 }
-
