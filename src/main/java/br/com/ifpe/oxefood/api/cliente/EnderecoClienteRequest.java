@@ -2,8 +2,6 @@ package br.com.ifpe.oxefood.api.cliente;
 
 
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-
 import br.com.ifpe.oxefood.modelo.cliente.EnderecoCliente;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
