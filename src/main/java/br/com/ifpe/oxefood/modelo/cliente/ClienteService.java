@@ -10,7 +10,7 @@ import jakarta.transaction.Transactional;
 
 @Service
 public class ClienteService {
-    
+
     @Autowired
     private ClienteRepository repository;
 
@@ -25,13 +25,13 @@ public class ClienteService {
     }
 
     public List<Cliente> listarTodos() {
-  
-        return repository.findAll(); //select * from Cliente
+
+        return repository.findAll(); // select * from Cliente
     }
 
     public Cliente obterPorID(Long id) {
 
-        return repository.findById(id).get(); //select * from Cliente where id = ?
+        return repository.findById(id).get(); // select * from Cliente where id = ?
     }
 
     @Transactional
@@ -43,7 +43,7 @@ public class ClienteService {
         cliente.setCpf(clienteAlterado.getCpf());
         cliente.setFoneCelular(clienteAlterado.getFoneCelular());
         cliente.setFoneFixo(clienteAlterado.getFoneFixo());
-            
+
         repository.save(cliente);
     }
 
@@ -60,25 +60,25 @@ public class ClienteService {
     public EnderecoCliente adicionarEnderecoCliente(Long clienteId, EnderecoCliente endereco) {
 
         Cliente cliente = this.obterPorID(clienteId);
-        
-        //Primeiro salva o EnderecoCliente:
+
+        // Primeiro salva o EnderecoCliente:
 
         endereco.setCliente(cliente);
         endereco.setHabilitado(Boolean.TRUE);
         enderecoClienteRepository.save(endereco);
-        
-        //Depois acrescenta o endereço criado ao cliente e atualiza o cliente:
+
+        // Depois acrescenta o endereço criado ao cliente e atualiza o cliente:
 
         List<EnderecoCliente> listaEnderecoCliente = cliente.getEnderecos();
-        
+
         if (listaEnderecoCliente == null) {
             listaEnderecoCliente = new ArrayList<EnderecoCliente>();
         }
-        
+
         listaEnderecoCliente.add(endereco);
         cliente.setEnderecos(listaEnderecoCliente);
         repository.save(cliente);
-        
+
         return endereco;
     }
 
@@ -107,6 +107,31 @@ public class ClienteService {
         Cliente cliente = this.obterPorID(endereco.getCliente().getId());
         cliente.getEnderecos().remove(endereco);
         repository.save(cliente);
+    }
+
+    public List<Cliente> filtrar(String nome, String cpf) {
+
+        List<Cliente> listaClientes = repository.findAll();
+
+        if ((cpf != null && !"".equals(cpf)) &&
+                (nome == null || "".equals(nome)))
+
+        {
+
+            listaClientes = repository.consultarPorCpf(cpf);
+
+        } else if ((cpf == null || "".equals(cpf)) &&
+                (nome != null && !"".equals(nome))) {
+
+            listaClientes = repository.consultarPorNome(nome);
+
+        } else if ((cpf != null || "".equals(cpf)) &&
+                (nome != null && !"".equals(nome))) {
+
+            listaClientes = repository.consultarPorNomeCpf(nome, cpf);
+        }
+
+        return listaClientes;
     }
 
 }
