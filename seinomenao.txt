@@ -1,0 +1,243 @@
+01) Acrescente na classe abaixo as seguintes validações com o as anotações do Spring Validation (1,0 ponto):
+
+    a) Não deve ser permitida nenhuma submissão sem que os atributos chave, cnpj, nomeFantasia, email e password não estejam preenchidos.
+
+    b) O campo password deve ter no mínimo 4 caracteres e no máximo 10 caracteres;
+
+    c) O campo email deve ser preenchido com um e-mail válido;
+
+    d) O campo dataEntradaSistema deve ser preenchido com uma data atual ou com qualquer data futura;
+
+import jakarta.validation.constraints.*;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
+
+public class EmpresaRequest {
+
+    @NotBlank(message = "A chave é obrigatória")
+    private String chave;
+
+    private String site;
+
+    @NotBlank(message = "O CNPJ é obrigatório")
+    private String cnpj;
+
+    private String inscricaoEstadual;
+
+    @NotBlank(message = "O nome fantasia é obrigatório")
+    private String nomeFantasia;
+
+    private String fone;
+
+    @NotBlank(message = "O e-mail é obrigatório")
+    @Email(message = "Formato de e-mail inválido")
+    private String email;
+
+    @NotBlank(message = "A senha é obrigatória")
+    @Size(min = 4, max = 10, message = "A senha deve ter entre 4 e 10 caracteres")
+    private String password;
+
+    @FutureOrPresent(message = "A data deve ser hoje ou uma data futura")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate dataEntradaSistema;
+
+    // Getters e Setters omitidos para brevidade
+
+    public Empresa buildEmpresa() {
+        Empresa empresa = Empresa.builder()
+            .chave(chave)
+            .usuario(buildUsuario())
+            .site(site)
+            .cnpj(cnpj)
+            .inscricaoEstadual(inscricaoEstadual)
+            .nomeFantasia(nomeFantasia)
+            .fone(fone)
+            .email(email)
+            .dataEntradaSistema(dataEntradaSistema != null ? dataEntradaSistema.toString() : null)
+            .build();
+
+        return empresa;
+    }
+
+    public Usuario buildUsuario() {
+        return Usuario.builder()
+            .username(email)
+            .password(password)
+            .build();
+    }
+}
+
+2)
+a) Relacionamento "um para muitos" (1-n) unidirecional entre Empresa e Funcionario
+import jakarta.persistence.*;
+import java.util.List;
+
+@Entity
+public class Empresa extends EntidadeAuditavel {
+
+    // Relacionamento 1 para N (um para muitos), unidirecional
+    @OneToMany
+    @JoinColumn(name = "empresa_id") // Cria a FK em Funcionario (mesmo sem campo do outro lado)
+    private List<Funcionario> funcionarios;
+
+    // Getters e Setters
+}
+
+b) Relacionamento "um para um" (1-1) unidirecional entre Venda e NotaFiscal
+
+import jakarta.persistence.*;
+
+@Entity
+public class Venda extends EntidadeAuditavel {
+
+    // Relacionamento 1 para 1 unidirecional
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "nota_fiscal_id") // Cria FK na tabela Venda apontando para NotaFiscal
+    private NotaFiscal notaFiscal;
+
+    // Getters e Setters
+}
+
+c) Relacionamento "um para muitos" (1-n) bidirecional entre Empresa e Entregador
+
+import jakarta.persistence.*;
+import java.util.List;
+
+@Entity
+public class Empresa extends EntidadeAuditavel {
+
+    // Relacionamento 1 para N bidirecional
+    @OneToMany(mappedBy = "empresa", cascade = CascadeType.ALL)
+    private List<Entregador> entregadores;
+
+    // Getters e Setters
+}
+
+3)
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+    http
+        .httpBasic().disable()
+        .csrf().disable()
+        .cors().and()
+        .sessionManagement()
+        .sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
+        .exceptionHandling()
+        .authenticationEntryPoint(authenticationEntryPoint).and()
+        .authorizeRequests()
+
+        // Lista de endpoints públicos
+        .antMatchers(AUTH_WHITELIST).permitAll()
+        .antMatchers(HttpMethod.GET, "/produtos").permitAll() // Libera acesso público ao GET /produtos <---------
+
+        // Qualquer outra requisição exige autenticação
+        .anyRequest().hasAnyAuthority(
+            Usuario.ROLE_CLIENTE,
+            Usuario.ROLE_EMPRESA_ADMIN,
+            Usuario.ROLE_EMPRESA_USER
+        )
+        .and()
+        .addFilterBefore(
+            new JwtTokenAuthenticationFilter(jwtTokenProvider),
+            UsernamePasswordAuthenticationFilter.class
+        );
+
+    return http.build();
+}
+
+4)
+
+
+V| O Spring Security é uma biblioteca que fornece proteção, mas também autenticação, autorização e armazenamento de senhas. Sendo que trabalha com vários protocolos para autenticação. Na disciplina, utilizamos o protocolo JWT.
+
+
+V| Após o fornecimento de credenciais válidas e consequente retorno do token para o client, o client precisa fornecer esse token no cabeçalho Authorization da solicitação, no formulário “Bearer TOKEN” (Token do portador).
+
+
+F| Para o Spring Security funcionar, é necessário que a interface UsuarioRepository estenda a classe UserDetailsService e assim possa herdar métodos como o save e o findById por exemplo.
+
+
+F| No projeto implementado da disciplina o usuário pode ter apenas um perfil de acesso atrelado a ele (List<String> roles), ou seja, ele não pode ser administrador e usuário ao mesmo tempo.
+
+
+F| Para que uma classe herde os atributos de username e password, basta que ela implemente a interface UserDetailsService.
+
+5)Qual anotação é colocada nos atributos de tipo LocalDateTime na classe do Request, para definir o formato
+ String esperado que será convertido na data? Dê exemplo. (0,5 ponto)
+
+
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDateTime;
+
+public class ProdutoRequest {
+
+    @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime dataValidade;
+
+    // getters e setters
+}
+
+6)Considerando a classe abaixo:
+
+
+public class CategoriaProduto extends EntidadeAuditavel {
+
+    @NotNull
+    @Column(nullable = false)
+    private String chaveEmpresa;
+
+    @NotNull
+    @Column(nullable = false, length = 100)
+    private String descricao;
+
+}
+
+    a) O código abaixo funciona? Se não funcionar, explique o porquê. (1,0 ponto)
+
+
+public interface CategoriaProdutoRepository extends JpaRepository<CategoriaProduto, Long> {
+
+    List<CategoriaProduto> findByChaveEmpresaOrderByDescricao(String chaveEmpresa);
+
+}
+
+Resposta: SIM, o código funciona.
+O método findByChaveEmpresaOrderByDescricao segue corretamente a convenção de nomes do Spring Data JPA, que gera 
+automaticamente a consulta:
+
+Filtra pela coluna chaveEmpresa
+
+Ordena os resultados pelo campo descricao em ordem crescente
+
+🔹 Requisitos atendidos:
+
+Os campos chaveEmpresa e descricao existem na entidade
+
+Os tipos estão corretos
+
+A nomenclatura do método está conforme o esperado pelo Spring
+
+
+
+
+
+    b) O código abaixo funciona? Se não funcionar, explique o porquê. (1,0 ponto)
+
+
+public interface CategoriaProdutoRepository extends JpaRepository<CategoriaProduto, Long> {
+
+    @Query(value = "SELECT c FROM CategoriaProduto c WHERE c.id = :idProduto AND c.chaveEmpresa = :chaveEmpresa")
+    CategoriaProduto findByIdAndChave(Long id, String chaveEmpresa);
+
+
+}
+
+Resposta: NÃO, o código NÃO funciona como está.
+🔴 Problema:
+A query usa :idProduto, mas o parâmetro do método se chama id.
+
+O nome do parâmetro na anotação @Query precisa bater com o nome do parâmetro do método quando você usa :nome com @Param.
+
+
+
